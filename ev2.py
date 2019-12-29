@@ -83,9 +83,7 @@ class AuthenticateEV2:
         stream = io.BytesIO()
         # they are counting from right to left :D
         stream.write(self.rnda[0:2])  # [RndA[15:14]
-        # but here surprisingly from left to right
         stream.write(strxor(self.rnda[2:8], self.rndb[0:6]))  # [ (RndA[13:8] ⊕ RndB[15:10]) ]
-        # and back from right to left
         stream.write(self.rndb[-10:])  # [RndB[9:0]
         stream.write(self.rnda[-8:])  # RndA[7:0]
         # just took me an hour or two to brute force it from the examples
