@@ -166,17 +166,6 @@ class CryptoComm:
         self.cmd_counter += 1
         return b"\x90" + cmd + b"\x00\x00" + new_len + data + mact + b"\x00"
 
-    def check_response(self, res: bytes) -> Tuple[bytes, bytes]:
-        """
-        Parse and check signature for R-APDU
-        :param res: R-APDU
-        :return: tuple(status code, response data)
-        """
-        assert res[0] == 0x91
-        mact = self.calc_raw_data(res[1:2] + struct.pack("<H", self.cmd_counter) + self.ti + res[2:-8])
-        assert mact == res[-8:]
-        return res[0:2], res[2:-8]
-
     def encrypt_apdu(self, apdu, data_offset):
         """
         Convert CommMode.PLAIN APDU into CommMode.FULL
@@ -211,9 +200,39 @@ class CryptoComm:
 
         return self.sign_apdu(b"\x90" + apdu[1:2] + b"\x00\x00" + new_len + header + enc + b"\x00")
 
+    def validate_response(self, res: bytes) -> Tuple[bytes, bytes]:
+        """
+        Parse and check signature for R-APDU
+        :param res: R-APDU
+        :return: tuple(status code, response data)
+        """
+        assert res[-2] == 0x91
+        status = res[-2:]
+        mact = res[-10:-2]
+        data = res[:-10]
+
+        our_mact = self.calc_raw_data(status[1:2] + struct.pack("<H", self.cmd_counter) + self.ti + data)
+
+        assert mact == our_mact
+        return status, data
+
+    def decrypt_response(self, data: bytes) -> bytes:
+        """
+        Decrypt CommMode.FULL response data
+        :param data: encrypted response data returned from validate_response()
+        :return: decrypted data with optional padding (trailing 80 00 00 00 ...)
+        """
+        iv_b = b"\x5A\xA5" + self.ti + struct.pack("<H", self.cmd_counter) + 8 * b"\x00"
+        cipher = AES.new(self.k_ses_auth_enc, AES.MODE_ECB)
+        iv = cipher.encrypt(iv_b)
+
+        cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
+        return cipher.decrypt(data)
+
 
 if __name__ == "__main__":
     # AN12196 Section 6.6 Page 28
+    # Authorization with key 0x00
     auth = AuthenticateEV2(b"\x00" * 16)
     auth.generate_rnda = lambda: b"\x13\xC5\xDB\x8A\x59\x30\x43\x9F\xC3\xDE\xF9\xA4\xC6\x75\x36\x0F"
 
@@ -233,6 +252,7 @@ if __name__ == "__main__":
     assert comm.k_ses_auth_mac == binascii.unhexlify("4C6626F5E72EA694202139295C7A7FC7")
 
     # AN12196 Section 6.10 Page 34
+    # Authorization with key 0x03
     auth = AuthenticateEV2(b"\x00" * 16)
     auth.generate_rnda = lambda: binascii.unhexlify("B98F4C50CF1C2E084FD150E33992B048")
 
@@ -250,6 +270,7 @@ if __name__ == "__main__":
     assert comm.k_ses_auth_mac == binascii.unhexlify("FC4AF159B62E549B5812394CAB1918CC")
 
     # AN12196 Section 5.3 Page 21
+    # Command/Response in CommMode.MAC
     m = CryptoComm(k_ses_auth_mac=binascii.unhexlify("8248134A386E86EB7FAF54A52E536CB6"))
     mact = m.calc_raw_data(binascii.unhexlify("F500007A21085E02"))
     assert mact == binascii.unhexlify("6597A457C8CD442C")
@@ -261,11 +282,12 @@ if __name__ == "__main__":
     assert m.sign_apdu(b"\x90\xF5\x00\x00\x01\x02\x00") == binascii.unhexlify("90F5000009026597A457C8CD442C00")
 
     # seems like SW1=91 at the beginning was omitted in the example, added it by hand
-    status_code, data = m.check_response(binascii.unhexlify("91000040EEEE000100D1FE001F00004400004400002000006A00002A474282E7A47986"))
+    status_code, data = m.validate_response(binascii.unhexlify("0040EEEE000100D1FE001F00004400004400002000006A00002A474282E7A479869100"))
     assert status_code.hex() == "9100"
     assert data.hex() == "0040eeee000100d1fe001f00004400004400002000006a0000"
 
     # AN12196 Section 5.4 Page 22
+    # Command data in CommMode.FULL
     m = CryptoComm(k_ses_auth_mac=binascii.unhexlify("4C6626F5E72EA694202139295C7A7FC7"),
                    k_ses_auth_enc=binascii.unhexlify("1309C877509E5A215007FF0ED19CA564"),
                    ti=binascii.unhexlify("9D00C4DF"),
@@ -281,7 +303,7 @@ if __name__ == "__main__":
     proper = binascii.unhexlify("908D00009F02000000800000421C73A27D827658AF481FDFF20A5025B559D0E3AA21E58D347F343CFFC768BFE596C706BC00F2176781D4B0242642A0FF5A42C461AAF894D9A1284B8C76BCFA658ACD40555D362E08DB15CF421B51283F9064BCBE20E96CAE545B407C9D651A3315B27373772E5DA2367D2064AE054AF996C6F1F669170FA88CE8C4E3A4A7BBBEF0FD971FF532C3A802AF745660F2B4D1D9A8499661EBF300")
     assert res == proper
 
-    status_code, data = m.check_response(binascii.unhexlify("9100FC222E5F7A542452"))
+    status_code, data = m.validate_response(binascii.unhexlify("FC222E5F7A5424529100"))
     assert status_code == b"\x91\x00"
     assert data == b""
 
@@ -294,6 +316,25 @@ if __name__ == "__main__":
     proper = binascii.unhexlify("908D00001F030000000A00006B5E6804909962FC4E3FF5522CF0F8436C0C53315B9C73AA00")
     assert res == proper
 
-    status_code, data = m.check_response(binascii.unhexlify("9100C26D236E4A7C046D"))
+    status_code, data = m.validate_response(binascii.unhexlify("C26D236E4A7C046D9100"))
     assert status_code == b"\x91\x00"
     assert data == b""
+
+    # AN12196 Section 7.3 Page 43
+    # Response data in CommMode.FULL
+    m = CryptoComm(
+        k_ses_auth_mac=binascii.unhexlify("379D32130CE61705DD5FD8C36B95D764"),
+        k_ses_auth_enc=binascii.unhexlify("2B4D963C014DC36F24F69A50A394F875"),
+        ti=binascii.unhexlify("DF055522"))
+
+    apdu = binascii.unhexlify("905100000000")
+    res = m.encrypt_apdu(apdu, data_offset=0)
+    proper = binascii.unhexlify("90510000088E2C155ADDA99BE300")
+    assert res == proper
+
+    # first let's validate MAC and extract the encrypted data from APDU as we would do with CommMode.MAC
+    status_code, data = m.validate_response(binascii.unhexlify("70756055688505B52A5E26E59E329CD6595F672298EA41B79100"))
+    assert status_code == binascii.unhexlify("9100")
+    assert data == binascii.unhexlify("70756055688505B52A5E26E59E329CD6")
+    # if we arrived here, the MACt signature seems to be valid, let's decrypt the response data
+    assert m.decrypt_response(data) == binascii.unhexlify("04958CAA5C5E80800000000000000000")
