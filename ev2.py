@@ -178,6 +178,12 @@ class CryptoComm:
         return res[0:2], res[2:-8]
 
     def encrypt_apdu(self, apdu, data_offset):
+        """
+        Convert CommMode.PLAIN APDU into CommMode.FULL
+        :param apdu: Plain APDU
+        :param data_offset: length of the command header (how many data bytes should get through unencrypted)
+        :return: Encrypted APDU
+        """
         assert apdu[0] == 0x90
         assert apdu[2] == 0x00
         assert apdu[3] == 0x00
@@ -251,6 +257,7 @@ if __name__ == "__main__":
     m = CryptoComm(k_ses_auth_mac=binascii.unhexlify("8248134A386E86EB7FAF54A52E536CB6"),
                    ti=b"\x7A\x21\x08\x5E",
                    cmd_counter=0)
+    # convert from CommMode.PLAIN to CommMode.MAC
     assert m.sign_apdu(b"\x90\xF5\x00\x00\x01\x02\x00") == binascii.unhexlify("90F5000009026597A457C8CD442C00")
 
     # seems like SW1=91 at the beginning was omitted in the example, added it by hand
@@ -270,6 +277,7 @@ if __name__ == "__main__":
     # just because header gets through unencrypted
     apdu = binascii.unhexlify("908D000097020000008000000051D1014D550463686F6F73652E75726C2E636F6D2F6E7461673432343F653D303030303030303030303030303030303030303030303030303030303030303026633D303030303030303030303030303030300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000")
     res = m.encrypt_apdu(apdu, data_offset=7)
+    # check whether we arrived at the same result as in docs
     proper = binascii.unhexlify("908D00009F02000000800000421C73A27D827658AF481FDFF20A5025B559D0E3AA21E58D347F343CFFC768BFE596C706BC00F2176781D4B0242642A0FF5A42C461AAF894D9A1284B8C76BCFA658ACD40555D362E08DB15CF421B51283F9064BCBE20E96CAE545B407C9D651A3315B27373772E5DA2367D2064AE054AF996C6F1F669170FA88CE8C4E3A4A7BBBEF0FD971FF532C3A802AF745660F2B4D1D9A8499661EBF300")
     assert res == proper
 
@@ -280,7 +288,9 @@ if __name__ == "__main__":
     # AN12196 Section 6.12 Page 36
     m = CryptoComm(binascii.unhexlify("FC4AF159B62E549B5812394CAB1918CC"), ti=binascii.unhexlify("7614281A"), cmd_counter=0, k_ses_auth_enc=binascii.unhexlify("7A93D6571E4B180FCA6AC90C9A7488D4"))
     apdu = binascii.unhexlify("908D000011030000000A00000102030405060708090A00")
+    # convert CommMode.PLAIN into CommMode.FULL
     res = m.encrypt_apdu(apdu, data_offset=7)
+    # compare with docs
     proper = binascii.unhexlify("908D00001F030000000A00006B5E6804909962FC4E3FF5522CF0F8436C0C53315B9C73AA00")
     assert res == proper
 
