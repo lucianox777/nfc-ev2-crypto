@@ -2,7 +2,7 @@
 # Authorization with key 0x00
 import binascii
 
-from ev2 import AuthenticateEV2, CryptoComm
+from ev2 import AuthenticateEV2, CryptoComm, CommMode
 
 
 def test_auth1():
@@ -69,7 +69,7 @@ def test_mac1():
     assert m.sign_apdu(b"\x90\xF5\x00\x00\x01\x02\x00") == binascii.unhexlify("90F5000009026597A457C8CD442C00")
 
     # seems like SW1=91 at the beginning was omitted in the example, added it by hand
-    status_code, data = m.validate_response(
+    status_code, data = m.parse_response(
         binascii.unhexlify("0040EEEE000100D1FE001F00004400004400002000006A00002A474282E7A479869100"))
     assert status_code.hex() == "9100"
     assert data.hex() == "0040eeee000100d1fe001f00004400004400002000006a0000"
@@ -104,7 +104,7 @@ def test_full1():
         "9661EBF300")
     assert res == proper
 
-    status_code, data = m.validate_response(binascii.unhexlify("FC222E5F7A5424529100"))
+    status_code, data = m.parse_response(binascii.unhexlify("FC222E5F7A5424529100"))
     assert status_code == b"\x91\x00"
     assert data == b""
 
@@ -124,7 +124,7 @@ def test_full2():
         "908D00001F030000000A00006B5E6804909962FC4E3FF5522CF0F8436C0C53315B9C73AA00")
     assert res == proper
 
-    status_code, data = m.validate_response(binascii.unhexlify("C26D236E4A7C046D9100"))
+    status_code, data = m.parse_response(binascii.unhexlify("C26D236E4A7C046D9100"))
     assert status_code == b"\x91\x00"
     assert data == b""
 
@@ -143,9 +143,67 @@ def test_full3():
     assert res == proper
 
     # first let's validate MAC and extract the encrypted data from APDU as we would do with CommMode.MAC
-    status_code, data = m.validate_response(
+    status_code, data = m.parse_response(
         binascii.unhexlify("70756055688505B52A5E26E59E329CD6595F672298EA41B79100"))
     assert status_code == binascii.unhexlify("9100")
     assert data == binascii.unhexlify("70756055688505B52A5E26E59E329CD6")
     # if we arrived here, the MACt signature seems to be valid, let's decrypt the response data
     assert m.decrypt_response(data) == binascii.unhexlify("04958CAA5C5E80800000000000000000")
+
+
+def test_wrap_cmd1():
+    # similar to test_full2 but with additional convenience wrapper
+    # AN12196 Section 6.12 Page 36
+    m = CryptoComm(
+        k_ses_auth_mac=binascii.unhexlify("FC4AF159B62E549B5812394CAB1918CC"),
+        k_ses_auth_enc=binascii.unhexlify("7A93D6571E4B180FCA6AC90C9A7488D4"),
+        ti=binascii.unhexlify("7614281A"),
+        cmd_counter=0)
+
+    res = m.wrap_cmd(0x8D,
+                     mode=CommMode.FULL,
+                     header=b"\x03\x00\x00\x00\x0A\x00\x00",
+                     data=b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A")
+    assert res == binascii.unhexlify(
+        "908D00001F030000000A00006B5E6804909962FC4E3FF5522CF0F8436C0C53315B9C73AA00")
+
+    status_code, data = m.unwrap_res(binascii.unhexlify("C26D236E4A7C046D9100"), CommMode.FULL)
+    assert status_code == b"\x91\x00"
+    assert data == b""
+
+
+def test_wrap_cmd2():
+    # similar to test_mac1 but with additional convenience wrapper
+    # AN12196 Section 5.3 Page 21
+    m = CryptoComm(k_ses_auth_mac=binascii.unhexlify("8248134A386E86EB7FAF54A52E536CB6"),
+                   ti=b"\x7A\x21\x08\x5E",
+                   cmd_counter=0)
+    assert m.wrap_cmd(0xF5, mode=CommMode.MAC, header=b"\x02") \
+        == binascii.unhexlify("90F5000009026597A457C8CD442C00")
+
+    status_code, data = m.unwrap_res(
+        binascii.unhexlify("0040EEEE000100D1FE001F00004400004400002000006A00002A474282E7A479869100"),
+        CommMode.MAC)
+    assert status_code.hex() == "9100"
+    assert data.hex() == "0040eeee000100d1fe001f00004400004400002000006a0000"
+
+
+def test_wrap_cmd3():
+    # AN12196 Section 7.3 Page 43
+    # similar to test_full3 but with additional convenience wrapper
+    m = CryptoComm(
+        k_ses_auth_mac=binascii.unhexlify("379D32130CE61705DD5FD8C36B95D764"),
+        k_ses_auth_enc=binascii.unhexlify("2B4D963C014DC36F24F69A50A394F875"),
+        ti=binascii.unhexlify("DF055522"))
+
+    res = m.wrap_cmd(0x51, CommMode.FULL)
+    proper = binascii.unhexlify("90510000088E2C155ADDA99BE300")
+    assert res == proper
+
+    # first let's validate MAC and extract the encrypted data from APDU as we would do with CommMode.MAC
+    status_code, data = m.unwrap_res(
+        binascii.unhexlify("70756055688505B52A5E26E59E329CD6595F672298EA41B79100"),
+        CommMode.FULL)
+    assert status_code == binascii.unhexlify("9100")
+    # with the convenience wrapper data is already decrypted here
+    assert data == binascii.unhexlify("04958CAA5C5E80800000000000000000")

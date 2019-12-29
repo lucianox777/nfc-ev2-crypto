@@ -5,6 +5,7 @@ This code was implemented based on AN12196.
 import io
 import os
 import struct
+from enum import Enum
 from typing import Tuple
 
 from Crypto.Cipher import AES
@@ -117,6 +118,12 @@ class AuthenticateEV2:
         return CryptoComm(k_ses_auth_mac, k_ses_auth_enc, ti=ti, pdcap2=pdcap2, pcdcap2=pcdcap2)
 
 
+class CommMode(Enum):
+    PLAIN = 1
+    MAC = 2
+    FULL = 3
+
+
 class CryptoComm:
     """
     This class represents an authenticated session after AuthentivateEV2 command.
@@ -147,6 +154,34 @@ class CryptoComm:
         c.update(data)
         mac = c.digest()
         return bytes(bytearray([mac[i] for i in range(16) if i % 2 == 1]))
+
+    def wrap_cmd(self, ins: int, mode: CommMode, header: bytes = None, data: bytes = None) -> bytes:
+        """
+        Wrap commend into APDU with CommMode.PLAIN/MAC/FULL
+        :param ins: command code, e.g. 0x8D (ISO SELECT CC)
+        :param header: command header, e.g. b"\x03\x00\x00\x00\x0A\x00\x00"
+        :param data: command data, e.g. b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A"
+        :param mode: communication mode
+        :return: wrapped APDU (bytes)
+        """
+        if header is None:
+            header = b""
+
+        if data is None:
+            data = b""
+
+        payload_len = len(header) + len(data)
+        apdu = b"\x90" + bytes([ins]) + b"\x00\x00" + bytes([payload_len]) + header + data + b"\x00"
+
+        if mode == CommMode.PLAIN:
+            self.cmd_counter += 1
+            return apdu
+        elif mode == CommMode.MAC:
+            return self.sign_apdu(apdu)
+        elif mode == CommMode.FULL:
+            return self.encrypt_apdu(apdu, len(header))
+
+        raise RuntimeError("Invalid CommMode specified.")
 
     def sign_apdu(self, apdu: bytes) -> bytes:
         """
@@ -209,7 +244,7 @@ class CryptoComm:
 
         return self.sign_apdu(b"\x90" + apdu[1:2] + b"\x00\x00" + new_len + header + enc + b"\x00")
 
-    def validate_response(self, res: bytes) -> Tuple[bytes, bytes]:
+    def parse_response(self, res: bytes) -> Tuple[bytes, bytes]:
         """
         Parse and check signature for R-APDU
         :param res: R-APDU
@@ -237,3 +272,22 @@ class CryptoComm:
 
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
         return cipher.decrypt(data)
+
+    def unwrap_res(self, res: bytes, mode: CommMode) -> Tuple[bytes, bytes]:
+        """
+        Process response in any communication mode
+        :param res: R-APDU (bytes)
+        :param mode: CommMode
+        :return: tuple(status, response data)
+        """
+        if mode == CommMode.PLAIN:
+            require("Response code 91xx", res[-2] == 0x91)
+            status_code = res[-2:]
+            data = res[:-2]
+            return status_code, data
+        elif mode == CommMode.MAC:
+            status_code, data = self.parse_response(res)
+            return status_code, data
+        elif mode == CommMode.FULL:
+            status_code, enc_data = self.parse_response(res)
+            return status_code, self.decrypt_response(enc_data)
