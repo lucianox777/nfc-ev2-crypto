@@ -20,6 +20,11 @@ def byte_rot_right(x):
     return x[-1:] + x[:-1]
 
 
+def require(msg, condition):
+    if not condition:
+        raise RuntimeError("Condition failed: {}".format(msg))
+
+
 class AuthenticateEV2:
     """
     Perform AuthenticateEV2First handshake with the specified authorization key.
@@ -50,8 +55,8 @@ class AuthenticateEV2:
         :param part1_resp: first R-APDU (response to init())
         :return: response C-APDU
         """
-        assert len(part1_resp) == 18
-        assert part1_resp[-2:] == b"\x91\xAF"
+        require("R-APDU length", len(part1_resp) == 18)
+        require("status code 91AF", part1_resp[-2:] == b"\x91\xAF")
         rndb_enc = part1_resp[:16]
 
         cipher = AES.new(self.auth_key, AES.MODE_CBC, IV=b"\x00" * 16)
@@ -69,8 +74,8 @@ class AuthenticateEV2:
         :param part2_resp: final R-APDU
         :return: CryptoComm object
         """
-        assert len(part2_resp) == 34
-        assert part2_resp[-2:] == b"\x91\x00"
+        require("R-APDU length", len(part2_resp) == 34)
+        require("status code 9100", part2_resp[-2:] == b"\x91\x00")
         enc = part2_resp[:32]
 
         cipher = AES.new(self.auth_key, AES.MODE_CBC, IV=b"\x00" * 16)
@@ -81,7 +86,7 @@ class AuthenticateEV2:
         pdcap2 = resp_s.read(6)
         pcdcap2 = resp_s.read(6)
         recv_rnda = byte_rot_right(rnda_p)
-        assert recv_rnda == self.rnda
+        require("generated RndA == decrypted RndA", recv_rnda == self.rnda)
 
         stream = io.BytesIO()
         # they are counting from right to left :D
@@ -153,11 +158,11 @@ class CryptoComm:
             raise RuntimeError("TI was not set.")
 
         # [CLS=90] [INS] [P1=00] [P2=00] [Lc] [data...] [Le=0]
-        assert apdu[0] == 0x90
-        assert apdu[2] == 0x00
-        assert apdu[3] == 0x00
-        assert apdu[4] == len(apdu) - 6
-        assert apdu[-1] == 0x00
+        require("APDU CLS=0x90", apdu[0] == 0x90)
+        require("APDU P1=0x00", apdu[2] == 0x00)
+        require("APDU P2=0x00", apdu[3] == 0x00)
+        require("APDU Lc valid", apdu[4] == len(apdu) - 6)
+        require("APDU Le=0x00", apdu[-1] == 0x00)
 
         cmd = apdu[1:2]
         cmd_cntr_b = struct.pack("<H", self.cmd_counter)
@@ -165,7 +170,7 @@ class CryptoComm:
         data = apdu[5:-1]
         mact = self.calc_raw_data(cmd + cmd_cntr_b + ti + data)
         new_len = bytes([apdu[4] + len(mact)])
-        assert len(new_len) == 1
+        require("APDU Data shorter than 256 bytes", len(new_len) == 1)
 
         self.cmd_counter += 1
         return b"\x90" + cmd + b"\x00\x00" + new_len + data + mact + b"\x00"
@@ -177,11 +182,11 @@ class CryptoComm:
         :param data_offset: length of the command header (how many data bytes should get through unencrypted)
         :return: Encrypted APDU
         """
-        assert apdu[0] == 0x90
-        assert apdu[2] == 0x00
-        assert apdu[3] == 0x00
-        assert apdu[4] == len(apdu) - 6
-        assert apdu[-1] == 0x00
+        require("APDU CLS=0x90", apdu[0] == 0x90)
+        require("APDU P1=0x00", apdu[2] == 0x00)
+        require("APDU P2=0x00", apdu[3] == 0x00)
+        require("APDU Lc valid", apdu[4] == len(apdu) - 6)
+        require("APDU Le=0x00", apdu[-1] == 0x00)
 
         header = apdu[5:5 + data_offset]
 
@@ -200,7 +205,7 @@ class CryptoComm:
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
         enc = cipher.encrypt(plainstream.getvalue())
         new_len = bytes([len(header) + len(enc)])
-        assert len(new_len) == 1
+        require("APDU Data shorter than 256 bytes", len(new_len) == 1)
 
         return self.sign_apdu(b"\x90" + apdu[1:2] + b"\x00\x00" + new_len + header + enc + b"\x00")
 
@@ -210,14 +215,14 @@ class CryptoComm:
         :param res: R-APDU
         :return: tuple(status code, response data)
         """
-        assert res[-2] == 0x91
+        require("Response code 91xx", res[-2] == 0x91)
         status = res[-2:]
         mact = res[-10:-2]
         data = res[:-10]
 
         our_mact = self.calc_raw_data(status[1:2] + struct.pack("<H", self.cmd_counter) + self.ti + data)
 
-        assert mact == our_mact
+        require("Received MAC == calculated MAC", mact == our_mact)
         return status, data
 
     def decrypt_response(self, data: bytes) -> bytes:
