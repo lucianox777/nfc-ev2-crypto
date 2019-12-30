@@ -1,3 +1,7 @@
+"""
+Quick tests against arbitrarily chosen LRP test vectors from AN12304
+"""
+
 import binascii
 
 from Crypto.Protocol.SecretSharing import _Element

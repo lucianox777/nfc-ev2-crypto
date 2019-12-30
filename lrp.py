@@ -5,7 +5,7 @@ Lekaage Resilient Primitive (AN12304)
 import binascii
 import io
 import struct
-from typing import Generator, List
+from typing import Generator, List, Union
 
 from Crypto.Cipher import AES
 from Crypto.Protocol.SecretSharing import _Element
@@ -27,16 +27,25 @@ def remove_pad(pt: bytes):
     return pt[:-padl]
 
 
-def nibbles(x: bytes) -> Generator[int, None, None]:
+def nibbles(x: Union[bytes, str]) -> Generator[int, None, None]:
     """
     Generate integers out of x (bytes), applicable for m = 4
     """
-    for nb in x.hex():
+    if isinstance(x, bytes):
+        x = x.hex()
+
+    for nb in x:
         yield binascii.unhexlify("0" + nb)[0]
 
 
 def incr_counter(r: bytes):
-    return struct.pack(">I", struct.unpack(">I", r)[0] + 1)
+    ctr = struct.unpack(">I", r)[0] + 1
+
+    if ctr > 2**32 - 1:
+        # overflow
+        ctr = 0
+
+    return struct.pack(">I", ctr)
 
 
 def e(k: bytes, v: bytes) -> bytes:
@@ -104,7 +113,7 @@ class LRP:
         return uk
 
     @staticmethod
-    def eval_lrp(p: List[bytes], kp: bytes, x: bytes, final: bool) -> bytes:
+    def eval_lrp(p: List[bytes], kp: bytes, x: Union[bytes, str], final: bool) -> bytes:
         """
         Algorithm 3 assuming m = 4
         """
