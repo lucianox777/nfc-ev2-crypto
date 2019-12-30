@@ -231,10 +231,12 @@ class CryptoComm:
 
         plainstream = io.BytesIO()
         plainstream.write(apdu[5+data_offset:-1])
-        plainstream.write(b"\x80")
+        # wasn't the 0x80 obligatory? here it seems not
+        pad_byte = b"\x80"
 
         while plainstream.getbuffer().nbytes % AES.block_size != 0:
-            plainstream.write(b"\x00")
+            plainstream.write(pad_byte)
+            pad_byte = b"\x00"
 
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
         enc = cipher.encrypt(plainstream.getvalue())
