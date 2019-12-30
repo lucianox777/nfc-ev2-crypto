@@ -231,6 +231,7 @@ class CryptoComm:
 
         plainstream = io.BytesIO()
         plainstream.write(apdu[5+data_offset:-1])
+        # wasn't the 0x80 obligatory? here it seems not
         pad_byte = b"\x80"
 
         while plainstream.getbuffer().nbytes % AES.block_size != 0:
