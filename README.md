@@ -1,7 +1,8 @@
-# NTAG424 EV2 cryptography example
+# NTAG424 EV2/LRP cryptography example
 
-* `AuthenticateEV2` class to perform authentication with PICC
-* `CryptoComm` class to sign/encrypt APDUs and validate responses.
+* `AuthenticateEV2` - perform authentication with PICC;
+* `CryptoComm` - sign/encrypt APDUs and validate responses;
+* `LRP` - perform CTR mode encryption/decryption or CMACing with Leakage Resilient Primitive.
 
 This code was written according to the publicly available application note *AN12196 "NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints"*.
 
