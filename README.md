@@ -28,7 +28,7 @@ Please refer to `test_ev2.py` and cross-check it with the application notes. The
 
 ### LRP
 
-Encryption/decryption:
+LRICB Encryption (LRICBEnc) and decryption (LRICBDec):
 ```python
 from lrp import LRP
 
@@ -50,7 +50,7 @@ lrp = LRP(key, 0, iv, pad=True)
 pt = lrp.decrypt(ct)
 ```
 
-MACing:
+MACing (LRP-CMAC/CMAC_LRP):
 ```python
 from lrp import LRP
 
