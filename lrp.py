@@ -1,5 +1,5 @@
 """
-Lekaage Resilient Primitive (AN12304)
+Leakage Resilient Primitive (AN12304)
 """
 
 import binascii
