@@ -1,5 +1,9 @@
 """
-Leakage Resilient Primitive (AN12304)
+Leakage Resilient Primitive (AN12304).
+
+NOTE: This implementation may be not resistant to side channel attacks and therefore is suitable
+only for use in PCD (the device which reads/interacts with the NFC tag). You shouldn't use this
+code on PICC (NFC tag/card) side and it shouldn't be ported to JavaCards or similar.
 """
 
 import binascii
