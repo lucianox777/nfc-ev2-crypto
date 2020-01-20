@@ -171,7 +171,12 @@ class CryptoComm:
             data = b""
 
         payload_len = len(header) + len(data)
-        apdu = b"\x90" + bytes([ins]) + b"\x00\x00" + bytes([payload_len]) + header + data + b"\x00"
+        payload_section = bytes([payload_len]) + header + data
+
+        if payload_len == 0:
+            payload_section = b""
+
+        apdu = b"\x90" + bytes([ins]) + b"\x00\x00" + payload_section + b"\x00"
 
         if mode == CommMode.PLAIN:
             self.cmd_counter += 1
