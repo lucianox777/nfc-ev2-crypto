@@ -57,7 +57,7 @@ from lrp import LRP
 import binascii
 
 key = binascii.unhexlify("8195088CE6C393708EBBE6C7914ECB0B")
-lrp = LRP(key, 0, b"\x00" * 16, pad=True)
+lrp = LRP(key, 0)
 mac = lrp.cmac(binascii.unhexlify("BBD5B85772C7"))
 ```
 
