@@ -60,3 +60,6 @@ key = binascii.unhexlify("8195088CE6C393708EBBE6C7914ECB0B")
 lrp = LRP(key, 0, b"\x00" * 16, pad=True)
 mac = lrp.cmac(binascii.unhexlify("BBD5B85772C7"))
 ```
+
+Decrypt SDM PICCData and validate CMAC:
+See [test_lrp_sdm.py](https://github.com/icedevml/ntag424-ev2-crypto/blob/master/test_lrp_sdm.py) for an example.
