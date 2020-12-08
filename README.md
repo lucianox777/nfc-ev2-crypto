@@ -1,4 +1,4 @@
-# NTAG424 EV2/LRP cryptography example
+# EV2/LRP cryptography example
 
 * `AuthenticateEV2` - perform authentication with PICC;
 * `CryptoComm` - sign/encrypt APDUs and validate responses;
@@ -9,6 +9,8 @@ This code was written according to the publicly available application note *AN12
 **Pull requests welcome.**
 
 *Note: NTAG — is a trademark of NXP B.V.*
+
+*Note: This GitHub project is not affiliated with NXP B.V. in any way. Product names are mentioned here in order to inform about compatibility.**
 
 ## Usage
 ### EV2
@@ -63,7 +65,7 @@ mac = lrp.cmac(binascii.unhexlify("BBD5B85772C7"))
 
 Decrypt SDM PICCData and validate CMAC:
 
-See [test_lrp_sdm.py](https://github.com/icedevml/ntag424-ev2-crypto/blob/master/test_lrp_sdm.py) for an example.
+See [test_lrp_sdm.py](https://github.com/icedevml/nfc-ev2-crypto/blob/master/test_lrp_sdm.py) for an example.
 
 ## Contact
 Feel free to reach me at ml@icedev.pl if you have any questions concerning this topic.
