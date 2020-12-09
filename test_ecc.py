@@ -1,3 +1,5 @@
+import binascii
+
 from validate_ecc import validate_tag
 
 
