@@ -2,7 +2,8 @@
 
 * `AuthenticateEV2` - perform authentication with PICC;
 * `CryptoComm` - sign/encrypt APDUs and validate responses;
-* `LRP` - perform CTR mode encryption/decryption or CMACing with Leakage Resilient Primitive.
+* `LRP` - perform CTR mode encryption/decryption or CMACing with Leakage Resilient Primitive;
+* `validate_ecc` - check asymmetric originality signature
 
 This code was written according to the publicly available application note *AN12196 "NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints"*.
 
@@ -66,6 +67,25 @@ mac = lrp.cmac(binascii.unhexlify("BBD5B85772C7"))
 Decrypt SDM PICCData and validate CMAC:
 
 See [test_lrp_sdm.py](https://github.com/icedevml/nfc-ev2-crypto/blob/master/test_lrp_sdm.py) for an example.
+
+### Originality check
+Standalone program:
+
+```
+python3 validate_ecc.py 04518DFAA96180 D1940D17CFEDA4BFF80359AB975F9F6514313E8F90C1D3CAAF5941AD744A1CDF9A83F883CAFE0FE95D1939B1B7E47113993324473B785D21
+```
+
+From Python:
+```
+import binascii
+
+from validate_ecc import validate_tag
+
+uid = binascii.unhexlify("04518DFAA96180")
+sig = binascii.unhexlify("D1940D17CFEDA4BFF80359AB975F9F6514313E8F90C1D3CAAF5941AD744A1CDF9A83F883CAFE0FE95D1939B1B7E47113993324473B785D21")
+
+print(validate_tag(uid, sig))
+```
 
 ## Contact
 Feel free to reach me at ml@icedev.pl if you have any questions concerning this topic.
