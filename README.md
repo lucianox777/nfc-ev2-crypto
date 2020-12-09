@@ -14,6 +14,14 @@ This code was written according to the publicly available application note *AN12
 *Note: This GitHub project is not affiliated with NXP B.V. in any way. Product names are mentioned here in order to inform about compatibility.**
 
 ## Usage
+### Pre-requirements
+```
+apt-get install -y python3 python3-pip git
+git clone https://github.com/icedevml/nfc-ev2-crypto.git
+cd nfc-ev2-crypto
+pip3 install -r requirements.txt
+```
+
 ### EV2
 Please refer to `test_ev2.py` and cross-check it with the application notes. There are also some docstrings in the `ev2.py` file.
 
