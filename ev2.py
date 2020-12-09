@@ -231,8 +231,16 @@ class CryptoComm:
 
         plainstream = io.BytesIO()
         plainstream.write(apdu[5+data_offset:-1])
+
+        # don't encrypt if the command doesn't contain any data
+        if len(apdu[5+data_offset:-1]) == 0:
+            return self.sign_apdu(apdu)
+
+        # byte \x80 has to be always appended by convention, even if
+        # the block is already divisible by AES.block_size
         plainstream.write(b"\x80")
 
+        # zero-pad until block is full
         while plainstream.getbuffer().nbytes % AES.block_size != 0:
             plainstream.write(b"\x00")
 
