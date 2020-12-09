@@ -234,7 +234,7 @@ class CryptoComm:
         plainstream.write(b"\x80")
 
         while plainstream.getbuffer().nbytes % AES.block_size != 0:
-            pad_byte = b"\x00"
+            plainstream.write(b"\x00")
 
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
         enc = cipher.encrypt(plainstream.getvalue())
