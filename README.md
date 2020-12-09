@@ -3,7 +3,7 @@
 * `AuthenticateEV2` - perform authentication with PICC;
 * `CryptoComm` - sign/encrypt APDUs and validate responses;
 * `LRP` - perform CTR mode encryption/decryption or CMACing with Leakage Resilient Primitive;
-* `validate_ecc` - check asymmetric originality signature
+* `validate_ecc` - check asymmetric originality signature;
 
 This code was written according to the publicly available application note *AN12196 "NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints"*.
 
