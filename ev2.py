@@ -231,12 +231,18 @@ class CryptoComm:
 
         plainstream = io.BytesIO()
         plainstream.write(apdu[5+data_offset:-1])
-        # wasn't the 0x80 obligatory? here it seems not
-        pad_byte = b"\x80"
 
+        # don't encrypt if the command doesn't contain any data
+        if len(apdu[5+data_offset:-1]) == 0:
+            return self.sign_apdu(apdu)
+
+        # byte \x80 has to be always appended by convention, even if
+        # the block is already divisible by AES.block_size
+        plainstream.write(b"\x80")
+
+        # zero-pad until block is full
         while plainstream.getbuffer().nbytes % AES.block_size != 0:
-            plainstream.write(pad_byte)
-            pad_byte = b"\x00"
+            plainstream.write(b"\x00")
 
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
         enc = cipher.encrypt(plainstream.getvalue())
