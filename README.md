@@ -76,7 +76,7 @@ python3 validate_ecc.py 04518DFAA96180 D1940D17CFEDA4BFF80359AB975F9F6514313E8F9
 ```
 
 From Python:
-```
+```python
 import binascii
 
 from validate_ecc import validate_tag
