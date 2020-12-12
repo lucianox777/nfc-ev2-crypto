@@ -11,6 +11,7 @@ from typing import Tuple
 from Crypto.Cipher import AES
 from Crypto.Hash import CMAC
 from Crypto.Util.strxor import strxor
+from Crypto.Util.Padding import unpad
 
 
 def byte_rot_left(x):
@@ -271,14 +272,17 @@ class CryptoComm:
         """
         Decrypt CommMode.FULL response data
         :param data: encrypted response data returned from validate_response()
-        :return: decrypted data with optional padding (trailing 80 00 00 00 ...)
+        :return: decrypted data without padding
         """
+        if not len(data):
+            return b""
+
         iv_b = b"\x5A\xA5" + self.ti + struct.pack("<H", self.cmd_counter) + 8 * b"\x00"
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_ECB)
         iv = cipher.encrypt(iv_b)
 
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_CBC, IV=iv)
-        return cipher.decrypt(data)
+        return unpad(cipher.decrypt(data), AES.block_size, "iso7816")
 
     def unwrap_res(self, res: bytes, mode: CommMode) -> Tuple[bytes, bytes]:
         """
