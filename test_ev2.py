@@ -148,7 +148,7 @@ def test_full3():
     assert status_code == binascii.unhexlify("9100")
     assert data == binascii.unhexlify("70756055688505B52A5E26E59E329CD6")
     # if we arrived here, the MACt signature seems to be valid, let's decrypt the response data
-    assert m.decrypt_response(data) == binascii.unhexlify("04958CAA5C5E80800000000000000000")
+    assert m.decrypt_response(data) == binascii.unhexlify("04958CAA5C5E80")
 
 
 def test_wrap_cmd1():

@@ -274,6 +274,9 @@ class CryptoComm:
         :param data: encrypted response data returned from validate_response()
         :return: decrypted data without padding
         """
+        if not len(data):
+            return b""
+
         iv_b = b"\x5A\xA5" + self.ti + struct.pack("<H", self.cmd_counter) + 8 * b"\x00"
         cipher = AES.new(self.k_ses_auth_enc, AES.MODE_ECB)
         iv = cipher.encrypt(iv_b)
