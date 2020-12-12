@@ -206,4 +206,4 @@ def test_wrap_cmd3():
         CommMode.FULL)
     assert status_code == binascii.unhexlify("9100")
     # with the convenience wrapper data is already decrypted here
-    assert data == binascii.unhexlify("04958CAA5C5E80800000000000000000")
+    assert data == binascii.unhexlify("04958CAA5C5E80")
